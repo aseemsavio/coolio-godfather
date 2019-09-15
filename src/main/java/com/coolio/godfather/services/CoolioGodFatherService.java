@@ -53,6 +53,8 @@ public class CoolioGodFatherService {
                 awakeResponses.add(awakeResponse);
             }
         }
+        AwakeResponse awakeResponse = new AwakeResponse("coolio-godfather", "running");
+        awakeResponses.add(awakeResponse);
         return awakeResponses;
     }
 
