@@ -1,5 +1,6 @@
 package com.coolio.godfather.controllers;
 
+import com.coolio.godfather.constants.CoolioConstants;
 import com.coolio.godfather.services.CoolioGodFatherService;
 import com.coolio.godfather.templates.AwakeResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +27,7 @@ public class CoolioGodFatherController {
         return coolioGodFatherService.getHealthReport();
     }
 
-    @Scheduled(cron = "0 0/15 * * * *")
+    @Scheduled(cron = CoolioConstants.GODFATHER_CRON_EVERY_15_MINS)
     public void scheduledHealthCheck(){
         coolioGodFatherService.scheduledHealthCheck();
     }

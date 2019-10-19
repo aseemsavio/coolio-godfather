@@ -1,5 +1,6 @@
 package com.coolio.godfather.services;
 
+import com.coolio.godfather.constants.CoolioConstants;
 import com.coolio.godfather.templates.AwakeResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,16 +13,15 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * @author Aseem Savio
  */
 @Service
-public class CoolioGodFatherService {
+public class CoolioGodFatherService implements CoolioConstants{
 
     protected Logger log = LoggerFactory.getLogger(CoolioGodFatherService.class);
 
@@ -37,33 +37,29 @@ public class CoolioGodFatherService {
     @Autowired
     RestTemplateBuilder restTemplateBuilder;
 
-    public Map<String, String> mapIt() {
-        return getMap();
-    }
-
     public List<AwakeResponse> getHealthReport() {
         List<AwakeResponse> awakeResponses = new ArrayList<>();
-        Map<String, String> urlToNameMap = getMap();
+        Map<String, String> urlToNameMap = zipServiceNameURL(coolioServiceNameList, coolioServiceURLlist);
         for (Map.Entry<String, String> service : urlToNameMap.entrySet()) {
-            if (callService(service.getValue()).equals("1")) {
-                AwakeResponse awakeResponse = new AwakeResponse(service.getKey(), "running");
+            if (callService(service.getValue()).equals(STRING_ONE)) {
+                AwakeResponse awakeResponse = new AwakeResponse(service.getKey(), SERVICE_STATUS_RUNNING);
                 awakeResponses.add(awakeResponse);
             } else {
-                AwakeResponse awakeResponse = new AwakeResponse(service.getKey(), "stopped");
+                AwakeResponse awakeResponse = new AwakeResponse(service.getKey(), SERVICE_STATUS_STOPPED);
                 awakeResponses.add(awakeResponse);
             }
         }
-        AwakeResponse awakeResponse = new AwakeResponse("coolio-godfather", "running");
+        AwakeResponse awakeResponse = new AwakeResponse(APP_NAME, SERVICE_STATUS_RUNNING);
         awakeResponses.add(awakeResponse);
         return awakeResponses;
     }
 
     public void scheduledHealthCheck() {
         List<AwakeResponse> awakeResponses = new ArrayList<>();
-        Map<String, String> urlToNameMap = getMap();
+        Map<String, String> urlToNameMap = zipServiceNameURL(coolioServiceNameList, coolioServiceURLlist);
         List<String> failedServiceNames = new ArrayList<>();
         for (Map.Entry<String, String> service : urlToNameMap.entrySet()) {
-            if (!callService(service.getValue()).equals("1")) {
+            if (!callService(service.getValue()).equals(STRING_ONE)) {
                 failedServiceNames.add(service.getKey());
                 log.error(service.getKey() + " has failed in production.");
             }
@@ -74,7 +70,7 @@ public class CoolioGodFatherService {
     protected void constructServiceFailureEmail(List<String> serviceNames) {
         if (!serviceNames.isEmpty()) {
             RestTemplate restTemplate = new RestTemplate();
-            String endPoint = mailmanServiceURL + "/sendServiceFailureEmail";
+            String endPoint = mailmanServiceURL + SEND_SERVICE_FAILURE_EMAIL_ENDPOINT;
             String requestJSON = getJSONforServiceFailure(serviceNames);
             log.info("Request JSON payload " + requestJSON);
             HttpHeaders headers = new HttpHeaders();
@@ -96,30 +92,37 @@ public class CoolioGodFatherService {
                 "}";
     }
 
-
     /**
-     * This method returns a Map of microservice-names and their URLs.
+     * This method zips the two lists it takes - service Names and the Service URLS into a single Map.
      *
-     * @return urlToNameMap
+     * @param serviceNames
+     * @param serviceURLs
+     * @return
      */
-    protected Map<String, String> getMap() {
-        Map<String, String> urlToNameMap = new HashMap<>();
-        for (int i = 0; i < coolioServiceNameList.size(); i++) {
-            urlToNameMap.put(coolioServiceNameList.get(i), coolioServiceURLlist.get(i));
-        }
-        return urlToNameMap;
+    protected Map<String, String> zipServiceNameURL(List<String> serviceNames, List<String> serviceURLs) {
+        int size = serviceNames.size() == serviceURLs.size() ? serviceNames.size() : 0;
+        return IntStream.range(0, size)
+                .boxed()
+                .collect(Collectors.toMap(serviceNames::get, serviceURLs::get));
     }
 
+    /**
+     * The actual RestTemplate call happens here.
+     *
+     * @param url
+     * @return
+     */
     protected String callService(String url) {
         RestTemplate restTemplate = restTemplateBuilder.build();
-        String URI = url + "/all/lub";
-        String response = "";
+        String URI = url + COMMON_HEALTH_ENDPOINT;
+        String response = EMPTY_STRING;
         try {
             response = restTemplate.getForObject(URI, String.class);
         } catch (Exception e) {
-            return "0";
+            return STRING_ZERO;
         }
-        return response.equalsIgnoreCase("dub") ? "1" : "0";
+        return response.equalsIgnoreCase(HEART_BEAT_RESPONSE) ? STRING_ONE : STRING_ZERO;
     }
+
 
 }
